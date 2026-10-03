@@ -1,0 +1,107 @@
+flowchart TB
+    subgraph Clients["Clients"]
+        WEB["Web App"]
+        MOB["Mobile App"]
+    end
+
+    subgraph Edge["Edge"]
+        CDN["CDN"]
+        GW["API Gateway<br/>routing · JWT verify · rate limit"]
+        RTG["Realtime Gateway<br/>(WebSocket, stateless nodes ×N)"]
+    end
+
+    subgraph Services["Microservices"]
+        direction TB
+        IDS["Identity Service<br/>auth · profiles"]
+        PUZ["Puzzle Service<br/>generator · solver · difficulty"]
+        GAMES["Solo Game Service"]
+        ROOMS["Room Service<br/>rooms · join requests · membership"]
+        MATCHS["Match Service<br/>collab / competitive state machine"]
+        SCORES["Scoring Service"]
+        LB["Leaderboard Service"]
+        CHATS["Chat Service"]
+        AIS["AI Assistant Service<br/>HintEngine + LLM"]
+        SCANS["Scan Service<br/>API only"]
+        NOTIF["Notification Service<br/>push · email"]
+    end
+
+    subgraph Workers["Async Workers (autoscaled)"]
+        OCRW["OCR Workers<br/>OpenCV + Tesseract / CNN"]
+        STTW["Speech Workers<br/>speech-to-text"]
+    end
+
+    subgraph Media["Voice"]
+        SFU["SFU Media Server<br/>(LiveKit / mediasoup)"]
+        TURN["TURN"]
+    end
+
+    subgraph Messaging["Messaging Backbone"]
+        direction LR
+        KAFKA[["Kafka<br/>domain event stream<br/>match.* · score.* · room.* · chat.*"]]
+        MQ[["RabbitMQ / SQS<br/>job queues<br/>ocr.jobs · stt.jobs · hint.jobs"]]
+    end
+
+    subgraph Data["Data (database per service)"]
+        PGID[("Postgres<br/>identity")]
+        PGPUZ[("Postgres<br/>puzzles + games")]
+        PGROOM[("Postgres<br/>rooms + matches")]
+        PGSCORE[("Postgres<br/>scores")]
+        MONGO[("Chat store<br/>Cassandra / Mongo")]
+        REDIS[("Redis<br/>presence · room live state<br/>pub/sub · leaderboards (ZSET)")]
+        S3[("Object Storage<br/>scan images")]
+        OLAP[("ClickHouse / BigQuery<br/>analytics")]
+    end
+
+    subgraph Obs["Observability"]
+        OTEL["OpenTelemetry · Prometheus<br/>Grafana · Loki"]
+    end
+
+    subgraph External["External"]
+        LLM["LLM API"]
+    end
+
+    WEB & MOB --> CDN --> GW
+    WEB & MOB <-->|WSS| RTG
+    WEB & MOB <-->|"WebRTC"| SFU
+    WEB & MOB -.-> TURN
+
+    GW --> IDS & PUZ & GAMES & ROOMS & LB & SCANS & AIS
+    RTG --> MATCHS
+    RTG --> CHATS
+    RTG --> ROOMS
+    RTG <--> REDIS
+
+    IDS --> PGID
+    PUZ --> PGPUZ
+    GAMES --> PGPUZ
+    ROOMS --> PGROOM
+    MATCHS --> PGROOM
+    MATCHS <--> REDIS
+    SCORES --> PGSCORE
+    LB --> REDIS
+    CHATS --> MONGO
+    SCANS --> S3
+
+    SCANS -->|publish job| MQ
+    MQ --> OCRW
+    OCRW --> S3
+    OCRW -->|result event| KAFKA
+    AIS -->|voice clip| MQ
+    MQ --> STTW
+    AIS --> LLM
+    AIS --> PUZ
+
+    GAMES -->|game.finished| KAFKA
+    MATCHS -->|"match.round.finished"| KAFKA
+    ROOMS -->|room.events| KAFKA
+    CHATS -->|chat.message| KAFKA
+
+    KAFKA --> SCORES
+    KAFKA --> LB
+    KAFKA --> NOTIF
+    KAFKA --> AIS
+    KAFKA --> OLAP
+    SCORES -->|score.awarded| KAFKA
+
+    Services -.-> OTEL
+    Workers -.-> OTEL

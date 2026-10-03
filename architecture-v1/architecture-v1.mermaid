@@ -1,0 +1,95 @@
+flowchart TB
+    subgraph Clients["Clients"]
+        WEB["Web App"]
+        MOB["Mobile App"]
+    end
+
+    subgraph Edge["Edge"]
+        PROXY["Reverse Proxy / TLS<br/>(Nginx or Caddy)"]
+    end
+
+    subgraph Monolith["Sudoku Server — Modular Monolith (1 deployable)"]
+        direction TB
+
+        subgraph API["API Layer"]
+            MW["Middleware<br/>Auth (JWT) · Rate limit · Validation"]
+            REST["REST Controllers<br/>Auth · User · Scan · Puzzle · SoloGame<br/>Room · Match · Leaderboard · AI"]
+            WSG["WebSocket Gateway<br/>room state · moves · chat · timer"]
+            SIG["WebRTC Signaling<br/>offer / answer / ICE"]
+        end
+
+        subgraph Modules["Domain Modules (strict boundaries, in-process calls)"]
+            direction LR
+            AUTH["Auth & User<br/>Module"]
+            SCAN["Scan Module<br/>ImageScanService"]
+            ENGINE["Sudoku Engine<br/>Generator · Solver<br/>Validator · DifficultyRater"]
+            GAME["Solo Game<br/>Module"]
+            ROOM["Room Module<br/>Room · JoinRequest<br/>Membership"]
+            MATCH["Match Module<br/>CollabMatch<br/>CompetitiveMatch"]
+            SCORE["Scoring &<br/>Leaderboard Module"]
+            CHAT["Chat Module"]
+            AIM["AI Assistant Module<br/>HintEngine + LLM client"]
+        end
+
+        subgraph Runtime["In-Process Runtime"]
+            REG["RoomRegistry<br/>(live room state in memory)"]
+            TIMER["TimerService<br/>(server-authoritative clock)"]
+            BUS["Internal Event Bus<br/>(in-process pub/sub)"]
+            WORKER["OCR Executor<br/>(bounded thread pool)"]
+        end
+
+        subgraph Scan["Scan Pipeline"]
+            CV["OpenCV<br/>preprocess · grid detect · warp"]
+            OCR["Tesseract<br/>digit recognition"]
+        end
+
+        REPO["Repository Layer"]
+    end
+
+    subgraph Data["Data Stores"]
+        PG[("PostgreSQL<br/>users · puzzles · games<br/>rooms · matches · scores · chat")]
+        REDIS[("Redis (optional)<br/>cache · rate-limit · leaderboard")]
+        FS[("Image Storage<br/>local disk / S3")]
+    end
+
+    subgraph External["External Services"]
+        LLM["LLM API<br/>(hint wording)"]
+        STT["Speech-to-Text<br/>(Ask-AI voice clip)"]
+        TURN["STUN / TURN Server<br/>(coturn)"]
+    end
+
+    WEB & MOB -->|HTTPS| PROXY
+    WEB & MOB -->|WSS| PROXY
+    PROXY --> MW
+    MW --> REST
+    PROXY --> WSG
+    PROXY --> SIG
+
+    REST --> AUTH & SCAN & GAME & ROOM & SCORE & AIM & ENGINE
+    WSG --> ROOM & MATCH & CHAT & AIM
+    SIG --> ROOM
+
+    SCAN --> WORKER
+    WORKER --> CV --> OCR
+    SCAN --> ENGINE
+    GAME --> ENGINE
+    MATCH --> ENGINE
+    MATCH --> SCORE
+    GAME --> SCORE
+    ROOM --> REG
+    MATCH --> REG
+    MATCH --> TIMER
+    AIM --> ENGINE
+    CHAT --> AIM
+
+    Modules <--> BUS
+    Modules --> REPO
+    REPO --> PG
+    SCORE -.-> REDIS
+    MW -.-> REDIS
+    SCAN --> FS
+
+    AIM --> LLM
+    AIM --> STT
+    WEB & MOB <-.->|"WebRTC audio (P2P mesh, ≤5 peers)"| WEB & MOB
+    WEB & MOB -.->|NAT traversal| TURN

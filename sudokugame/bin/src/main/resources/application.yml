@@ -1,0 +1,29 @@
+# Just copy paste application-dev.yml for development purposes.
+spring:
+  profiles:
+    active: local
+#    active: dev
+  application:
+    name: Sudoku-Game-BackEnd
+#api:
+#  endpoint:
+#    base-url: /api/v1
+server:
+  environment: ${PROD_ENVIRONMENT}
+
+#  #setup email config
+#  mail:
+#    host: smtp.gmail.com
+#    port: 587
+#    username: ${MAIL_SERVER_USERNAME}
+#    #    password will be set as env var when deploy for security
+#    password: ${MAIL_SERVER_PASSWORD}
+#    properties:
+#      mail:
+#        transport:
+#          protocol: smtp
+#        debug: true
+#        smtp:
+#          auth: true
+#          starttls:
+#            enable: true

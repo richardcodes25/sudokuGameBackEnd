@@ -1,0 +1,54 @@
+spring:
+#  datasource:
+#    url: jdbc:postgresql://shortline.proxy.rlwy.net:35639/railway
+#    username: postgres
+#    password: ZQtojqqaEPfEZiBuFAAIWBdzkYrzFCrH
+#    driver-class-name: org.postgresql.Driver
+  jpa:
+#    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update  # Change to "validate" in production
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+#api:
+#  endpoint:
+#    base-url: /api/v1
+server:
+  environment: dev
+  port: 8080
+
+#spring:
+#  datasource:
+#    url: jdbc:h2:mem:superfrogs
+#    username: sa
+#    password:
+#    driver-class-name: org.h2.Driver
+#  jpa:
+#    show-sql: true
+#    hibernate:
+#      ddl-auto: create
+#
+#  #setup email config
+#  #need to provide email & APP password
+#  mail:
+#    host: smtp.gmail.com
+#    port: 587
+#    username:
+#    password:
+#    properties:
+#      mail:
+#        transport:
+#          protocol: smtp
+#        debug: true
+#        smtp:
+#          auth: true
+#          starttls:
+#            enable: true
+#  <dependency>
+#  <groupId>com.h2database</groupId>
+#  <artifactId>h2</artifactId>
+#  <scope>runtime</scope>
+#  </dependency>
